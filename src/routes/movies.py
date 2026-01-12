@@ -210,7 +210,8 @@ async def create_missing_genres(db: AsyncSession, names: List[str]) -> List[Genr
             db.add(genre)
         genres.append(genre)
     await db.commit()
-    await db.refresh(genres)
+    for genre in genres:
+        await db.refresh(genre)
     return genres
 
 
@@ -224,7 +225,8 @@ async def create_missing_actors(db: AsyncSession, names: List[str]) -> List[Acto
             db.add(actor)
         actors.append(actor)
     await db.commit()
-    await db.refresh(actors)
+    for actor in actors:
+        await db.refresh(actor)
     return actors
 
 
@@ -238,5 +240,6 @@ async def create_missing_languages(db: AsyncSession, names: List[str]) -> List[L
             db.add(language)
         languages.append(language)
     await db.commit()
-    await db.refresh(languages)
+    for language in languages:
+        await db.refresh(language)
     return languages
