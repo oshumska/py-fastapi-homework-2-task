@@ -2,9 +2,9 @@ import math
 import datetime
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse
-from sqlalchemy import select, func
+from sqlalchemy import select, func, desc
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
@@ -45,7 +45,12 @@ async def get_movies(
     else:
         raise HTTPException(status_code=404, detail="No movies found.")
 
-    result = await db.execute(select(MovieModel).limit(per_page).offset(start))
+    result = await db.execute(
+        select(MovieModel)
+        .order_by(desc(MovieModel.id))
+        .limit(per_page)
+        .offset(start)
+    )
     movies = result.scalars().all()
     return {
         "movies": movies,
@@ -56,7 +61,11 @@ async def get_movies(
     }
 
 
-@router.post("/movies/", response_model=MovieDetailSchema)
+@router.post(
+    "/movies/",
+    response_model=MovieDetailSchema,
+    status_code=status.HTTP_201_CREATED
+)
 async def create_movie(movie: MovieCreate, db: AsyncSession = Depends(get_db)):
     if len(movie.name) > 255:
         raise HTTPException(status_code=400, detail="Bad Request")
@@ -67,7 +76,12 @@ async def create_movie(movie: MovieCreate, db: AsyncSession = Depends(get_db)):
         MovieModel.date == movie.date
     ))
     if unique_check.scalar_one_or_none():
-        raise HTTPException(status_code=409, detail="Conflict")
+        raise HTTPException(
+            status_code=409,
+            detail=f"A movie with the name "
+                   f"'{movie.name}' and release "
+                   f"date '{movie.date}' already exists."
+        )
     if movie.score < 0 or movie.score > 100:
         raise HTTPException(status_code=400, detail="Bad Request")
     if movie.budget < 0 or movie.revenue < 0:
@@ -89,7 +103,17 @@ async def create_movie(movie: MovieCreate, db: AsyncSession = Depends(get_db)):
             await db.commit()
             await db.refresh(country)
     else:
-        raise HTTPException(status_code=400, detail="Bad Request")
+        country_code = movie.country
+        country = await db.execute(
+            select(CountryModel)
+            .where(CountryModel.code == country_code)
+        )
+        if country is None:
+            country = CountryModel(code=country_code)
+            db.add(country)
+            await db.commit()
+            await db.refresh(country)
+        country = country.scalar_one_or_none()
     genres = await create_missing_genres(db, movie.genres)
     actors = await create_missing_actors(db, movie.actors)
     languages = await create_missing_languages(db, movie.languages)
