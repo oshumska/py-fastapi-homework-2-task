@@ -107,12 +107,12 @@ async def create_movie(movie: MovieCreate, db: AsyncSession = Depends(get_db)):
             select(CountryModel)
             .where(CountryModel.code == country_code)
         )
-        if country.scalar_one_or_none() is None:
+        country = country.scalar_one_or_none()
+        if country is None:
             country = CountryModel(code=country_code)
             db.add(country)
             await db.commit()
             await db.refresh(country)
-        country = country.scalar_one_or_none()
     genres = await create_missing_genres(db, movie.genres)
     actors = await create_missing_actors(db, movie.actors)
     languages = await create_missing_languages(db, movie.languages)
