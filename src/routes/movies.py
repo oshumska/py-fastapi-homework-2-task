@@ -68,7 +68,7 @@ async def get_movies(
 async def create_movie(movie: MovieCreate, db: AsyncSession = Depends(get_db)):
     if len(movie.name) > 255:
         raise HTTPException(status_code=400, detail="Bad Request")
-    if movie.date.year - datetime.datetime.now().year > 1:
+    if movie.date - datetime.date.today() > datetime.timedelta(days=365):
         raise HTTPException(status_code=400, detail="Bad Request")
     unique_check = await db.execute(select(MovieModel).where(
         MovieModel.name == movie.name,
@@ -107,7 +107,7 @@ async def create_movie(movie: MovieCreate, db: AsyncSession = Depends(get_db)):
             select(CountryModel)
             .where(CountryModel.code == country_code)
         )
-        if country is None:
+        if country.scalar_one_or_none() is None:
             country = CountryModel(code=country_code)
             db.add(country)
             await db.commit()
@@ -208,9 +208,9 @@ async def create_missing_genres(db: AsyncSession, names: List[str]) -> List[Genr
         if genre is None:
             genre = GenreModel(name=name)
             db.add(genre)
-            await db.commit()
-            await db.refresh(genre)
         genres.append(genre)
+    await db.commit()
+    await db.refresh(genres)
     return genres
 
 
@@ -222,9 +222,9 @@ async def create_missing_actors(db: AsyncSession, names: List[str]) -> List[Acto
         if actor is None:
             actor = ActorModel(name=name)
             db.add(actor)
-            await db.commit()
-            await db.refresh(actor)
         actors.append(actor)
+    await db.commit()
+    await db.refresh(actors)
     return actors
 
 
@@ -236,7 +236,7 @@ async def create_missing_languages(db: AsyncSession, names: List[str]) -> List[L
         if language is None:
             language = LanguageModel(name=name)
             db.add(language)
-            await db.commit()
-            await db.refresh(language)
         languages.append(language)
+    await db.commit()
+    await db.refresh(languages)
     return languages

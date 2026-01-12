@@ -54,6 +54,7 @@ class Country(NameIdBase):
 
 
 class MovieDetailSchema(BaseModel):
+    id: int
     name: str
     date: date
     score: float
