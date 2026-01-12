@@ -3,6 +3,7 @@ import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi.responses import JSONResponse
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -59,7 +60,7 @@ async def get_movies(
 async def create_movie(movie: MovieCreate, db: AsyncSession = Depends(get_db)):
     if len(movie.name) > 255:
         raise HTTPException(status_code=400, detail="Bad Request")
-    if datetime.datetime.now().year - movie.date.year > 1:
+    if movie.date.year - datetime.datetime.now().year > 1:
         raise HTTPException(status_code=400, detail="Bad Request")
     unique_check = await db.execute(select(MovieModel).where(
         MovieModel.name == movie.name,
@@ -169,7 +170,11 @@ async def update_movie(movie_id: int, movie: MovieUpdate, db: AsyncSession = Dep
             db_movie.revenue = movie.revenue
         else:
             raise HTTPException(status_code=400, detail="Invalid input data.")
-    return {"detail": "Movie updated successfully."}
+    await db.commit()
+    return JSONResponse(
+        status_code=200,
+        content={"detail": "Movie updated successfully."}
+    )
 
 
 def build_url(request: Request, page: int, per_page: int = 10):
