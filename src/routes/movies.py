@@ -5,9 +5,8 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, func, desc
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import selectinload
 
 from database import get_db, MovieModel
 from database.models import CountryModel, GenreModel, ActorModel, LanguageModel
@@ -30,7 +29,7 @@ async def get_movies(
         raise HTTPException(status_code=404, detail="No movies found.")
     total_pages = math.ceil(total_items / per_page)
     if page > 1:
-        prev_page = build_url(request, page - 1, per_page)
+        prev_page = f"/theater/movies/?page={page - 1}&per_page={per_page}"
         start = (page - 1) * per_page
     elif page == 1:
         prev_page = None
@@ -41,7 +40,7 @@ async def get_movies(
     if page == total_pages:
         next_page = None
     elif page < total_pages:
-        next_page = build_url(request, page + 1, per_page)
+        next_page = f"/theater/movies/?page={page + 1}&per_page={per_page}"
     else:
         raise HTTPException(status_code=404, detail="No movies found.")
 
@@ -199,11 +198,6 @@ async def update_movie(movie_id: int, movie: MovieUpdate, db: AsyncSession = Dep
         status_code=200,
         content={"detail": "Movie updated successfully."}
     )
-
-
-def build_url(request: Request, page: int, per_page: int = 10):
-    url = str(request.url.replace_query_params(page=page, per_page=per_page))
-    return url
 
 
 async def create_missing_genres(db: AsyncSession, names: List[str]) -> List[GenreModel]:
